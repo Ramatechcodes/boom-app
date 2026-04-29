@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Access Dashboard</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+      padding: 20px;
+    }
+
+    input, button {
+      padding: 10px;
+      margin: 5px;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 15px;
+      margin-top: 10px;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>🔐 Dashboard Access</h2>
+<p id="timer"></p>
+<input id="code" placeholder="Enter Access Code">
+<button onclick="login()">Login</button>
+<button onclick="pay()">Pay ₦3000</button>
+
+<hr>
+
+<div id="data"></div>
+
+<script>
+async function startTimer(code) {
+  const res = await fetch("/session/" + code);
+  const data = await res.json();
+
+  let expires = new Date(data.expiresAt).getTime();
+
+  setInterval(() => {
+    const now = Date.now();
+    const diff = Math.floor((expires - now) / 1000);
+
+    if (diff <= 0) {
+     alert("Session expired. Please purchase again.");
+window.location.href = "/pay.html";
+    }
+
+    const min = Math.floor(diff / 60);
+    const sec = diff % 60;
+
+    document.getElementById("timer").innerText =
+      "Expires in: " + min + "m " + sec + "s";
+  }, 1000);
+}
+async function pay() {
+  const email = prompt("Enter email");
+
+  const res = await fetch("/pay", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ email })
+  });
+
+  const data = await res.json();
+
+  window.location.href = data.paymentLink;
+}
+
+async function login() {
+  const code = document.getElementById("code").value;
+
+  const res = await fetch("/verify/" + code);
+  const data = await res.json();
+
+  if (!data.ok) {
+    alert(data.error === "expired" ? "Code expired" : "Invalid code");
+    return;
+  }
+
+  startTimer(code);   // ✅ start timer AFTER success
+  loadLocations();
+}
+
+async function loadLocations() {
+  const code = document.getElementById("code").value;
+
+  const res = await fetch("/locations/" + code);
+  const data = await res.json();
+
+  if (data.error) {
+    alert("Session expired. Please pay again.");
+    return;
+  }
+
+  const box = document.getElementById("data");
+  box.innerHTML = "";
+
+  data.forEach(loc => {
+    box.innerHTML += `
+      <div class="card">
+        <b>ID:</b> ${loc._id}<br>
+        <b>Lat:</b> ${loc.latitude}<br>
+        <b>Lng:</b> ${loc.longitude}<br>
+        <b>Address:</b> ${loc.address}<br>
+        <b>Date:</b> ${new Date(loc.createdAt).toLocaleString()}
+      </div>
+    `;
+  });
+}
+
+
+</script>
+
+</body>
+</html>

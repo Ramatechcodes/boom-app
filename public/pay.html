@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pay to Access Dashboard</title>
+</head>
+<body>
+
+<h2>Pay ₦3000 to Access Tracking Dashboard</h2>
+
+<input type="email" id="email" placeholder="Enter email">
+<button onclick="pay()">Pay Now</button>
+
+<script>
+async function pay() {
+  const email = document.getElementById("email").value;
+
+  const res = await fetch("/pay", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email })
+  });
+
+  const data = await res.json();
+
+  // redirect to Flutterwave payment page
+  window.location.href = data.paymentLink;
+}
+</script>
+
+</body>
+</html>
