@@ -26,7 +26,7 @@ app.post("/pay", async (req, res) => {
   "https://api.flutterwave.com/v3/payments",
   {
     tx_ref: sessionId,
-    amount: 100,
+    amount: 3000,
     currency: "NGN",
     redirect_url: `http://localhost:3000/success/${sessionId}`,
 
