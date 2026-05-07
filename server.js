@@ -113,7 +113,7 @@ app.get("/admin", async (req, res) => {
 
   const pin = req.query.pin;
 
-  if (pin !== "1234") {
+  if (pin !== "Ramadan@14") {
     return res.send(`
       <h2>🔒 Admin Login</h2>
 
@@ -166,7 +166,9 @@ app.get("/admin", async (req, res) => {
         <b>Browser:</b> ${v.browser}<br>
         <b>Device:</b> ${v.device}<br>
         <b>Page:</b> ${v.page}<br>
-        <b>Time:</b> ${new Date(v.createdAt).toLocaleString()}
+        <b>Time:</b> ${new Date(v.createdAt).toLocaleString("en-NG", {
+  timeZone: "Africa/Lagos"
+})}
       </div>
     `;
   });
