@@ -93,7 +93,7 @@ app.use(async (req, res, next) => {
       country: geo.data.country || "Unknown",
       city: geo.data.city || "Unknown",
       browser: req.useragent.browser,
-      device: req.useragent.platform,
+      device: req.useragent.source,
       page: req.originalUrl
     });
 
@@ -206,18 +206,29 @@ app.get("/success/:sessionId", async (req, res) => {
 });
 app.get("/verify/:code", async (req, res) => {
 
-const session = await Session.findOne({
-  accessCode: req.params.code,
-  paid: true
-});
+  // ✅ MASTER PIN BYPASS
+  if (req.params.code === process.env.MASTER_PIN) {
+    return res.json({
+      ok: true,
+      master: true
+    });
+  }
 
-if (!session) return res.json({ error: true });
+  const session = await Session.findOne({
+    accessCode: req.params.code,
+    paid: true
+  });
 
-if (new Date() > session.expiresAt) {
-  return res.json({ error: "expired" });
-}
+  if (!session) {
+    return res.json({ error: true });
+  }
 
-return res.json({ ok: true });
+  if (new Date() > session.expiresAt) {
+    return res.json({ error: "expired" });
+  }
+
+  return res.json({ ok: true });
+
 });
 const Location = require("./models/Location");
 
@@ -257,19 +268,45 @@ io.on("connection", (socket) => {
   });
 });
 app.get("/session/:code", async (req, res) => {
+
+  // ✅ MASTER PIN
+  if (req.params.code === process.env.MASTER_PIN) {
+
+    return res.json({
+      expiresAt: new Date(
+        Date.now() + 999999999
+      )
+    });
+
+  }
+
   const session = await Session.findOne({
     accessCode: req.params.code
   });
 
-  if (!session) return res.json({ error: true });
+  if (!session) {
+    return res.json({ error: true });
+  }
 
   res.json({
     expiresAt: session.expiresAt,
-    sessionId: session.sessionId   // ✅ ADD THIS
+    sessionId: session.sessionId
   });
+
 });
 
 app.get("/locations/:code", async (req, res) => {
+
+  // ✅ MASTER PIN ACCESS
+  if (req.params.code === process.env.MASTER_PIN) {
+
+    const data = await Location
+      .find()
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    return res.json(data);
+  }
 
   const session = await Session.findOne({
     accessCode: req.params.code,
@@ -281,9 +318,13 @@ app.get("/locations/:code", async (req, res) => {
   }
 
   const data = await Location.find({
-  sessionId: session.sessionId
-}).sort({ createdAt: -1 }).limit(100);
+    sessionId: session.sessionId
+  })
+  .sort({ createdAt: -1 })
+  .limit(100);
+
   res.json(data);
+
 });
 app.get("/dashboard/:code", async (req, res) => {
 
