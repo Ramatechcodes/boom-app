@@ -6,7 +6,8 @@ const { Server } = require("socket.io");
 const axios = require("axios");
 const { v4: uuidv4 } = require("uuid");
 const Session = require("./models/Session");
-
+const Visitor = require("./models/Visitor");
+const useragent = require("express-useragent");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -15,7 +16,7 @@ app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(express.static("public"));
-
+app.use(useragent.express());
 
 const API_KEY = process.env.GOOGLE_API_KEY;
 app.post("/pay", async (req, res) => {
@@ -36,7 +37,7 @@ app.post("/pay", async (req, res) => {
     },
 
     customizations: {
-      title: "Tracker SaaS",
+      title: "Ramatechcode Tracking App",
       description: "Access to live tracking dashboard"
     }
   },
@@ -57,6 +58,95 @@ app.post("/pay", async (req, res) => {
   res.json({
     paymentLink: response.data.data.link
   });
+});
+app.use(async (req, res, next) => {
+
+  try {
+
+    const ip =
+      req.headers["x-forwarded-for"] ||
+      req.socket.remoteAddress;
+
+    const geo = await axios.get(`http://ip-api.com/json/${ip}`);
+
+    await Visitor.create({
+      ip,
+      country: geo.data.country,
+      city: geo.data.city,
+      browser: req.useragent.browser,
+      device: req.useragent.platform,
+      page: req.originalUrl
+    });
+
+  } catch (err) {
+    console.log("Visitor tracking error:", err.message);
+  }
+
+  next();
+});
+app.get("/admin", async (req, res) => {
+
+  const pin = req.query.pin;
+
+  if (pin !== "1234") {
+    return res.send(`
+      <h2>🔒 Admin Login</h2>
+
+      <form>
+        <input 
+          type="password" 
+          name="pin" 
+          placeholder="Enter Admin PIN"
+        >
+
+        <button type="submit">
+          Login
+        </button>
+      </form>
+    `);
+  }
+
+  const visitors = await Visitor
+    .find()
+    .sort({ createdAt: -1 })
+    .limit(100);
+
+  let html = `
+    <h1>Admin Panel</h1>
+
+    <style>
+      body{
+        font-family:Arial;
+        background:#0f172a;
+        color:white;
+        padding:20px;
+      }
+
+      .card{
+        background:#1e293b;
+        padding:15px;
+        margin:10px 0;
+        border-radius:10px;
+      }
+    </style>
+  `;
+
+  visitors.forEach(v => {
+
+    html += `
+      <div class="card">
+        <b>IP:</b> ${v.ip}<br>
+        <b>Country:</b> ${v.country}<br>
+        <b>City:</b> ${v.city}<br>
+        <b>Browser:</b> ${v.browser}<br>
+        <b>Device:</b> ${v.device}<br>
+        <b>Page:</b> ${v.page}<br>
+        <b>Time:</b> ${new Date(v.createdAt).toLocaleString()}
+      </div>
+    `;
+  });
+
+  res.send(html);
 });
 app.get("/success/:sessionId", async (req, res) => {
 
@@ -153,6 +243,7 @@ app.get("/session/:code", async (req, res) => {
     sessionId: session.sessionId   // ✅ ADD THIS
   });
 });
+
 app.get("/locations/:code", async (req, res) => {
 
   const session = await Session.findOne({
