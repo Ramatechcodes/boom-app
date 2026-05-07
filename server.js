@@ -59,30 +59,55 @@ app.post("/pay", async (req, res) => {
     paymentLink: response.data.data.link
   });
 });
+app.set("trust proxy", true);
+
 app.use(async (req, res, next) => {
 
   try {
 
-    const ip =
-      req.headers["x-forwarded-for"] ||
-      req.socket.remoteAddress;
+    let ip = req.headers["x-forwarded-for"] || req.ip;
 
-    const geo = await axios.get(`http://ip-api.com/json/${ip}`);
+    // remove extra IPs
+    if (ip.includes(",")) {
+      ip = ip.split(",")[0];
+    }
+
+    // remove IPv6 prefix
+    ip = ip.replace("::ffff:", "");
+
+    // skip localhost
+    if (
+      ip === "127.0.0.1" ||
+      ip === "::1"
+    ) {
+      return next();
+    }
+
+    // use ipwho.is instead of ip-api
+    const geo = await axios.get(
+      `https://ipwho.is/${ip}`
+    );
 
     await Visitor.create({
       ip,
-      country: geo.data.country,
-      city: geo.data.city,
+      country: geo.data.country || "Unknown",
+      city: geo.data.city || "Unknown",
       browser: req.useragent.browser,
       device: req.useragent.platform,
       page: req.originalUrl
     });
 
   } catch (err) {
-    console.log("Visitor tracking error:", err.message);
+
+    console.log(
+      "Visitor tracking error:",
+      err.message
+    );
+
   }
 
   next();
+
 });
 app.get("/admin", async (req, res) => {
 
