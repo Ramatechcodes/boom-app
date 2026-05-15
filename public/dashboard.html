@@ -2,7 +2,12 @@
 <html>
 <head>
   <title>Access Dashboard</title>
+<link 
+  rel="stylesheet" 
+  href="https://unpkg.com/leaflet/dist/leaflet.css"
+/>
 
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <style>
     body {
       font-family: Arial;
@@ -115,6 +120,7 @@ async function login() {
 }
 
 async function loadLocations() {
+
   const code = document.getElementById("code").value;
 
   const res = await fetch("/locations/" + code);
@@ -126,22 +132,108 @@ async function loadLocations() {
   }
 
   const box = document.getElementById("data");
+
   box.innerHTML = "";
 
-  data.forEach(loc => {
+  data.forEach((loc, index) => {
+
+    const mapId = "map" + index;
+
     box.innerHTML += `
       <div class="card">
-        <b>ID:</b> ${loc._id}<br>
-        <b>Lat:</b> ${loc.latitude}<br>
-        <b>Lng:</b> ${loc.longitude}<br>
-        <b>Address:</b> ${loc.address}<br>
-        <b>Date:</b> ${new Date(loc.createdAt).toLocaleString()}
+
+        <b>ID:</b> ${loc._id}<br><br>
+
+        <b>Latitude:</b> ${loc.latitude}<br>
+        <b>Longitude:</b> ${loc.longitude}<br><br>
+
+        <b>Address:</b><br>
+        ${loc.address}<br><br>
+
+        <b>Date:</b>
+        ${new Date(loc.createdAt).toLocaleString()}<br><br>
+
+        <button onclick="toggleMap('${mapId}')">
+          📍 View Map
+        </button>
+
+        <a 
+          href="https://www.google.com/maps?q=${loc.latitude},${loc.longitude}" 
+          target="_blank"
+        >
+          <button>
+            🌍 Open In Google Maps
+          </button>
+        </a>
+
+        <div 
+          id="${mapId}" 
+          style="
+            height:300px;
+            margin-top:15px;
+            display:none;
+            border-radius:10px;
+          "
+        ></div>
+
       </div>
     `;
+
+    setTimeout(() => {
+
+      const map = L.map(mapId).setView(
+        [loc.latitude, loc.longitude],
+        15
+      );
+
+      L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+          attribution: '© OpenStreetMap'
+        }
+      ).addTo(map);
+
+      L.marker([
+        loc.latitude,
+        loc.longitude
+      ])
+      .addTo(map)
+      .bindPopup(`
+        📍 ${loc.address}
+      `)
+      .openPopup();
+
+      window[mapId] = map;
+
+    }, 100);
+
   });
+
 }
 
+function toggleMap(id) {
 
+  const mapDiv = document.getElementById(id);
+
+  if (mapDiv.style.display === "none") {
+
+    mapDiv.style.display = "block";
+
+    setTimeout(() => {
+
+      if (window[id]) {
+        window[id].invalidateSize();
+      }
+
+    }, 300);
+
+  } else {
+
+    mapDiv.style.display = "none";
+
+  }
+
+}
 </script>
 
 </body>
