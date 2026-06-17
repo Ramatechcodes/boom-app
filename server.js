@@ -29,7 +29,7 @@ app.post("/pay", async (req, res) => {
     tx_ref: sessionId,
     amount: 3000,
     currency: "NGN",
-    redirect_url: `http://localhost:3000/success/${sessionId}`,
+    redirect_url: `https://boom-app.onrender.com/success/${sessionId}`,
 
     customer: {
       email: req.body.email,
